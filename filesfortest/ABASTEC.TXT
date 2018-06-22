@@ -1,0 +1,5 @@
+INSERT INTO tmp_abastec (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont)values(1,'1','2018-06-14','05:10','ARZ1150','000824358','0000822294','20.64','100.000','000001962');
+INSERT INTO tmp_abastec (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont)values(1,'1','2018-06-14','10:46','ADZ0907','001326416','0000326070','7358.73','135.940','000002016');
+INSERT INTO tmp_abastec (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont)values(1,'1','2018-06-14','10:49','ADZ0907','001326416','0000326070','41285.43','24.230','000002016');
+INSERT INTO tmp_abastec (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont)values(1,'1','2018-06-14','17:45','AUR5835','000632983','0000632485','4.53','110.000','000001987');
+INSERT INTO tmp_abastec (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont)values(1,'1','2018-06-14','05:15','BAU8904','000197663','0000196600','28.96','36.710','000001961');

@@ -1,0 +1,2 @@
+INSERT INTO temp_del_compras (chave) values ('1406201800005000000000');
+INSERT INTO temp_del_compras (chave) values ('1406201800006000000123');

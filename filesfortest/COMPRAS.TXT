@@ -1,0 +1,2 @@
+INSERT INTO tmp_cmp (id_produto,id_transportadora,litros,numero_documento,data,hora,fornecedor,chave) values (1,'1','5000.000','000314807','2018-06-14','08:29','IPIRANGA','1406201800001000314807');
+INSERT INTO tmp_cmp (id_produto,id_transportadora,litros,numero_documento,data,hora,fornecedor,chave) values (1,'1','5000.000','000314809','2018-06-14','11:00','IPIRANGA','1406201800004000314809');
