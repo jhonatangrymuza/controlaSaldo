@@ -14,8 +14,7 @@ import sqlite3
 
 condP = True
 while(True):
-    time.sleep(2)
-    print("i la vamos nos ")
+    time.sleep(5)
     #faz a leitura do conn.ini
     cfg = configparser.ConfigParser()
     cfg.read('conn.ini', encoding='utf-8')
@@ -37,7 +36,7 @@ while(True):
         # se não conseguir conectar ele nao quebra o laço
         condP = True
 
-
+    #if para quando ele conseguir a conexão com o servidor ele fazer a operação que ele precisa
     if (condP == False):
         try:
             #conexão com o Mysql
@@ -54,20 +53,21 @@ while(True):
                 texto = arquivo.readlines()
                 for linha in texto:
                     cur.execute(linha)
-
+        #apaga o arquivo que ele acabou de fazer a leitura
         path = "."
         dir = os.listdir(path)
         for file in dir:
             if file == 'CMP_DEL.TXT':
                 os.remove(file)
 
-        # 1000314807140620180829
+        #while sempre sera true ate conseguir completar o seu ciclo
         compDel = True
         while(compDel):
+
             cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
             consuDelete = cur.fetchone()
 
-
+            #verifica se o retorno da query acima e diferente de None
             if(consuDelete != None):
                 id_temp_del_compras = consuDelete[0]
                 chaveDel            = consuDelete[1]
@@ -76,6 +76,7 @@ while(True):
                 cur.execute("SELECT id_compras,id_transportadora,litros, chave FROM compras where chave = " + chaveDel)
                 consuComp  = cur.fetchone()
 
+                #verifica se o retorno acima e None
                 if(consuComp != None):
                     id_compras = consuComp[0]
                     id_transp  = consuComp[1]
@@ -121,6 +122,7 @@ while(True):
                 texto = arquivo.readlines()
                 for linha in texto:
                     cur.execute(linha)
+        #apaga o arquivo que ele acabou de fazer a leitura
         path = "."
         dir = os.listdir(path)
         for file in dir:
@@ -165,6 +167,7 @@ while(True):
                 texto = arquivo.readlines()
                 for linha in texto:
                     cur.execute(linha)
+        #apaga o arquivo que ele acabou de fazer a leitura
         path = "."
         dir = os.listdir(path)
         for file in dir:
@@ -221,7 +224,7 @@ while(True):
 
                         toltaRetirado = saldoTransportadoraSaldo + litroAbastec
 
-                        cur.execute("UPDATE FROM transportadoras_saldo SET saldo = " + str(toltaRetirado) + "WHERE =" + str(transAbastec))
+                        cur.execute("UPDATE transportadoras_saldo SET saldo = " + str(toltaRetirado) + " WHERE id_transportadora = " + str(transAbastec))
 
                         cur.execute("DELETE FROM abastecimentos WHERE id_abastecimento =" + str(idAbastec))
 
