@@ -11,6 +11,7 @@ from datetime import date
 import os.path
 import pymysql
 import sqlite3
+import ctypes
 
 condP = True
 while(True):
@@ -63,57 +64,70 @@ while(True):
         #while sempre sera true ate conseguir completar o seu ciclo
         compDel = True
         while(compDel):
-
-            cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
-            consuDelete = cur.fetchone()
-
-            #verifica se o retorno da query acima e diferente de None
-            if(consuDelete != None):
-                id_temp_del_compras = consuDelete[0]
-                chaveDel            = consuDelete[1]
-
-
-                cur.execute("SELECT id_compras,id_transportadora,litros, chave FROM compras where chave = " + chaveDel)
-                consuComp  = cur.fetchone()
-
-                #verifica se o retorno acima e None
-                if(consuComp != None):
-                    id_compras = consuComp[0]
-                    id_transp  = consuComp[1]
-                    litrosComp = consuComp[2]
-                    chaveComp  = consuComp[3]
-
-                    cur.execute("SELECT id_transportadora_saldo, saldo FROM transportadoras_saldo where id_transportadora = " + str(id_transp))
-                    consuTransSald = cur.fetchone()
-                    id_TransSald = consuTransSald[0]
-                    saldoTrans  = consuTransSald[1]
-                    totalDel = saldoTrans - litrosComp
-
-                    upTransSald = 'update transportadoras_saldo set saldo =' + str(totalDel) + ' where id_transportadora_saldo  =  ' + str(id_TransSald)
-                    cur.execute(upTransSald)
-
-                    cur.execute("delete from compras where chave =" + str(id_compras))
-
-                    cur.execute("delete from temp_del_compras where chave =" + str(chaveDel))
-
-
-
-                else:
-                    cur.execute("delete from temp_del_compras where chave =" + str(chaveDel))
-
-                    cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
-                    consuDelete = cur.fetchone()
-
-                    if(consuDelete == None):
-                        compDel = False
-
-            else:
+            try:
                 cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
                 consuDelete = cur.fetchone()
 
+                #verifica se o retorno da query acima e diferente de None
 
-                if(consuDelete == None):
-                    compDel = False
+                if(consuDelete != None):
+                    id_temp_del_compras = consuDelete[0]
+                    chaveDel            = consuDelete[1]
+
+                    #pega a chave da consulta de temp_del_compras
+                    cur.execute("SELECT id_compras,id_transportadora,litros, chave FROM compras where chave = " + chaveDel)
+                    consuComp  = cur.fetchone()
+
+                    #verifica se o retorno de compras é difente de None
+                    if(consuComp != None):
+                        #variaveis com os retornos das querys
+                        id_compras = consuComp[0]
+                        id_transp  = consuComp[1]
+                        litrosComp = consuComp[2]
+                        chaveComp  = consuComp[3]
+
+                        # pega o id da transportadora que foi feita a compra com base na consulta acima
+                        cur.execute("SELECT id_transportadora_saldo, saldo FROM transportadoras_saldo where id_transportadora = " + str(id_transp))
+                        consuTransSald = cur.fetchone()
+                        id_TransSald = consuTransSald[0]
+                        saldoTrans  = consuTransSald[1]
+
+                        #faz o calculo de subtração da transportadora com a compra
+                        totalDel = saldoTrans - litrosComp
+                            #faz o update em transportadoras_saldo
+
+                        upTransSald = 'update transportadoras_saldo set saldo =' + str(totalDel) + ' where id_transportadora_saldo  =  ' + str(id_TransSald)
+                        cur.execute(upTransSald)
+
+                        #deleta o registro de compras
+                        cur.execute("delete from compras where chave =" + str(id_compras))
+
+                        cur.execute("delete from temp_del_compras where chave = " + str(chaveDel))
+
+
+
+
+                    else:
+
+                        cur.execute("delete from temp_del_compras where chave = " + str(chaveDel))
+
+                        cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
+                        consuDelete = cur.fetchone()
+
+
+                        #verfica se o retorno da query acima é None
+                        if(consuDelete == None):
+                            compDel = False
+
+                else:
+                    cur.execute("SELECT id_temp_del_compras,chave FROM temp_del_compras")
+                    consuDelete = cur.fetchone()
+
+
+                    if(consuDelete == None):
+                        compDel = False
+            except:
+                con.rollback()
 
 
         #leitura dos arquivos de texto para a insersão no banco de dados
@@ -131,34 +145,38 @@ while(True):
 
         compInsert = True
         while(compInsert):
-            cur.execute('SELECT * FROM tmp_cmp')
-            consultTmpCmp = cur.fetchone()
-
-            if(consultTmpCmp != None):
-
-                idProdTempComp  = consultTmpCmp[1]
-                idTransTempComp = consultTmpCmp[2]
-                litrosTempComp  = consultTmpCmp[3]
-                numDocTempComp  = consultTmpCmp[4]
-                dataTempComp    = consultTmpCmp[5]
-                horaTempComp    = consultTmpCmp[6]
-                forneTempComp   = consultTmpCmp[7]
-                chaveTempComp   = consultTmpCmp[8]
-
-                cur.execute('SELECT id_compras, chave FROM compras where chave = '+ str(chaveTempComp))
-                consultChaveComp = cur.fetchone()
-
-                if(consultChaveComp == None):
-                    cur.execute("INSERT INTO compras (id_produto,id_transportadora,litros,numero_documento,data,hora,fornecedor,chave,sinc) values " + "('" + str(idProdTempComp) + "','" + str(idTransTempComp) + "','" + str(litrosTempComp) + "','" + str(numDocTempComp) + "','" + str(dataTempComp) + "','" + str(horaTempComp) + "','" + str(forneTempComp) + "','"+ str(chaveTempComp) + "','0')")
-
-                    cur.execute("delete from tmp_cmp where chave =" + str(chaveTempComp))
-                else:
-                    cur.execute("delete from tmp_cmp where chave =" + str(chaveTempComp))
-            else:
+            try:
                 cur.execute('SELECT * FROM tmp_cmp')
                 consultTmpCmp = cur.fetchone()
-                if(consultTmpCmp == None):
-                    compInsert = False
+
+                if(consultTmpCmp != None):
+
+                    idProdTempComp  = consultTmpCmp[1]
+                    idTransTempComp = consultTmpCmp[2]
+                    litrosTempComp  = consultTmpCmp[3]
+                    numDocTempComp  = consultTmpCmp[4]
+                    dataTempComp    = consultTmpCmp[5]
+                    horaTempComp    = consultTmpCmp[6]
+                    forneTempComp   = consultTmpCmp[7]
+                    chaveTempComp   = consultTmpCmp[8]
+
+                    cur.execute('SELECT id_compras, chave FROM compras where chave = '+ str(chaveTempComp))
+                    consultChaveComp = cur.fetchone()
+
+                    if(consultChaveComp == None):
+
+                        cur.execute("INSERT INTO compras (id_produto,id_transportadora,litros,numero_documento,data,hora,fornecedor,chave,sinc) values " + "('" + str(idProdTempComp) + "','" + str(idTransTempComp) + "','" + str(litrosTempComp) + "','" + str(numDocTempComp) + "','" + str(dataTempComp) + "','" + str(horaTempComp) + "','" + str(forneTempComp) + "','"+ str(chaveTempComp) + "','0')")
+
+                        cur.execute("delete from tmp_cmp where chave =" + str(chaveTempComp))
+                    else:
+                        cur.execute("delete from tmp_cmp where chave =" + str(chaveTempComp))
+                else:
+                    cur.execute('SELECT * FROM tmp_cmp')
+                    consultTmpCmp = cur.fetchone()
+                    if(consultTmpCmp == None):
+                        compInsert = False
+            except:
+                con.rollback()
 
 
         # leitura dos arquivos de texto para a insersão no banco de dados
@@ -176,69 +194,71 @@ while(True):
 
         abastInsert=True
         while(abastInsert):
-
-            cur.execute("SELECT * FROM tmp_abastec")
-            consulTmpAbast = cur.fetchone()
-
-            if(consulTmpAbast != None):
-                idTempAbast     = consulTmpAbast[0]
-                transTmpAbastec = consulTmpAbast[1]
-                prodTmp         = consulTmpAbast[2]
-                dataTmp         = consulTmpAbast[3]
-                horaTmp         = consulTmpAbast[4]
-                placaTmp        = consulTmpAbast[5]
-                kmTmp           = consulTmpAbast[6]
-                kmAntTmp        = consulTmpAbast[7]
-                mediaTmp        = consulTmpAbast[8]
-                litroTmp        = consulTmpAbast[9]
-                numContTmp      = consulTmpAbast[10]
-                cur.execute("SELECT * FROM abastecimentos where num_cont = "+ str(numContTmp))
-                consulAbast = cur.fetchone()
-
-                if(consulAbast == None):
-                    cur.execute("INSERT INTO abastecimentos (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont,sinc)VALUES" + "('" + str(transTmpAbastec) +"','"+ str(prodTmp)+"','"+ str(dataTmp)+"','"+ str(horaTmp)+"','"+ str(placaTmp)+"','"+ str(kmTmp)+"','"+ str(kmAntTmp)+"','"+ str(mediaTmp)+"','"+ str(litroTmp)+"','"+str(numContTmp)+"','0')")
-                elif(consulAbast != None):
-                    idAbastec        = consulAbast[0]
-                    transAbastec     = consulAbast[1]
-                    prodAbastec      = consulAbast[2]
-                    dataAbastec      = consulAbast[3]
-                    horaAbastec      = consulAbast[4]
-                    placaAbastec     = consulAbast[5]
-                    kmAbastec        = consulAbast[6]
-                    kmAntAbastec     = consulAbast[7]
-                    mediaAbastec     = consulAbast[8]
-                    litroAbastec     = consulAbast[9]
-                    numContAbastec   = consulAbast[10]
-
-                    consultaAbastec =  str(transAbastec)+ str(prodAbastec)+str(dataAbastec)+str(horaAbastec)+str(placaAbastec)+str(kmAbastec)+str(kmAntAbastec)+str(mediaAbastec)+str(litroAbastec)+str(numContAbastec)
-
-                    consultaTempAbast = str(transTmpAbastec)+ str(prodTmp)+ str(dataTmp)+str(horaTmp)+str(placaTmp)+str(kmTmp)+str(kmAntTmp)+str(mediaTmp)+str(litroTmp)+str(numContTmp)
-
-                    if(consultaTempAbast == consultaAbastec):
-                        cur.execute("delete from tmp_abastec where num_cont =" + str(numContTmp))
-
-                    if(consultaTempAbast != consultaAbastec):
-                        cur.execute("SELECT saldo FROM transportadoras_saldo where id_transportadora = " + str(transAbastec))
-                        consulTranspSald = cur.fetchone()
-                        saldoTransportadoraSaldo  = consulTranspSald[0]
-
-                        toltaRetirado = saldoTransportadoraSaldo + litroAbastec
-
-                        cur.execute("UPDATE transportadoras_saldo SET saldo = " + str(toltaRetirado) + " WHERE id_transportadora = " + str(transAbastec))
-
-                        cur.execute("DELETE FROM abastecimentos WHERE id_abastecimento =" + str(idAbastec))
-
-                        cur.execute("INSERT INTO abastecimentos (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont,sinc)VALUES" + "('" +  str(transTmpAbastec) +"','"+ str(prodTmp)+"','"+ str(dataTmp)+"','"+ str(horaTmp)+"','"+ str(placaTmp)+"','"+ str(kmTmp)+"','"+ str(kmAntTmp)+"','"+ str(mediaTmp)+"','"+ str(litroTmp)+"','"+str(numContTmp)+"','0')")
-
-                        cur.execute("DELETE FROM abastecimentos WHERE id_abastecimento =" + str(idTempAbast))
-            else:
-                cur.execute("DELETE FROM tmp_abastec WHERE id_abastecimento <> 0")
-
+            try:
                 cur.execute("SELECT * FROM tmp_abastec")
                 consulTmpAbast = cur.fetchone()
-                if(consulTmpAbast == None):
-                    abastInsert = False
 
+                if(consulTmpAbast != None):
+                    idTempAbast     = consulTmpAbast[0]
+                    transTmpAbastec = consulTmpAbast[1]
+                    prodTmp         = consulTmpAbast[2]
+                    dataTmp         = consulTmpAbast[3]
+                    horaTmp         = consulTmpAbast[4]
+                    placaTmp        = consulTmpAbast[5]
+                    kmTmp           = consulTmpAbast[6]
+                    kmAntTmp        = consulTmpAbast[7]
+                    mediaTmp        = consulTmpAbast[8]
+                    litroTmp        = consulTmpAbast[9]
+                    numContTmp      = consulTmpAbast[10]
+                    cur.execute("SELECT * FROM abastecimentos where num_cont = "+ str(numContTmp))
+                    consulAbast = cur.fetchone()
+
+                    if(consulAbast == None):
+                        cur.execute("INSERT INTO abastecimentos (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont,sinc)VALUES" + "('" + str(transTmpAbastec) +"','"+ str(prodTmp)+"','"+ str(dataTmp)+"','"+ str(horaTmp)+"','"+ str(placaTmp)+"','"+ str(kmTmp)+"','"+ str(kmAntTmp)+"','"+ str(mediaTmp)+"','"+ str(litroTmp)+"','"+str(numContTmp)+"','0')")
+                    elif(consulAbast != None):
+                        idAbastec        = consulAbast[0]
+                        transAbastec     = consulAbast[1]
+                        prodAbastec      = consulAbast[2]
+                        dataAbastec      = consulAbast[3]
+                        horaAbastec      = consulAbast[4]
+                        placaAbastec     = consulAbast[5]
+                        kmAbastec        = consulAbast[6]
+                        kmAntAbastec     = consulAbast[7]
+                        mediaAbastec     = consulAbast[8]
+                        litroAbastec     = consulAbast[9]
+                        numContAbastec   = consulAbast[10]
+
+                        consultaAbastec =  str(transAbastec)+ str(prodAbastec)+str(dataAbastec)+str(horaAbastec)+str(placaAbastec)+str(kmAbastec)+str(kmAntAbastec)+str(mediaAbastec)+str(litroAbastec)+str(numContAbastec)
+
+                        consultaTempAbast = str(transTmpAbastec)+ str(prodTmp)+ str(dataTmp)+str(horaTmp)+str(placaTmp)+str(kmTmp)+str(kmAntTmp)+str(mediaTmp)+str(litroTmp)+str(numContTmp)
+
+                        if(consultaTempAbast == consultaAbastec):
+                            cur.execute("delete from tmp_abastec where num_cont =" + str(numContTmp))
+
+                        if(consultaTempAbast != consultaAbastec):
+                            cur.execute("SELECT saldo FROM transportadoras_saldo where id_transportadora = " + str(transAbastec))
+                            consulTranspSald = cur.fetchone()
+                            saldoTransportadoraSaldo  = consulTranspSald[0]
+
+                            toltaRetirado = saldoTransportadoraSaldo + litroAbastec
+
+                            cur.execute("UPDATE transportadoras_saldo SET saldo = " + str(toltaRetirado) + " WHERE id_transportadora = " + str(transAbastec))
+
+                            cur.execute("DELETE FROM abastecimentos WHERE id_abastecimento =" + str(idAbastec))
+
+                            cur.execute("INSERT INTO abastecimentos (id_produto,id_transportadora,data,hora,placa,km,km_ant,media,litros,num_cont,sinc)VALUES" + "('" +  str(transTmpAbastec) +"','"+ str(prodTmp)+"','"+ str(dataTmp)+"','"+ str(horaTmp)+"','"+ str(placaTmp)+"','"+ str(kmTmp)+"','"+ str(kmAntTmp)+"','"+ str(mediaTmp)+"','"+ str(litroTmp)+"','"+str(numContTmp)+"','0')")
+
+                            cur.execute("DELETE FROM abastecimentos WHERE id_abastecimento =" + str(idTempAbast))
+                else:
+                    cur.execute("DELETE FROM tmp_abastec WHERE id_abastecimento <> 0")
+
+                    cur.execute("SELECT * FROM tmp_abastec")
+                    consulTmpAbast = cur.fetchone()
+                    if(consulTmpAbast == None):
+                        abastInsert = False
+
+            except:
+                con.rollback()
 
 
 
@@ -249,73 +269,77 @@ while(True):
 
             compCond = True
             while(compCond):
-                cur.execute("SELECT * FROM compras WHERE sinc = 0")
-                consultaCompra = cur.fetchone()
-                idCompra = str(consultaCompra[0])
-                prod     = str(consultaCompra[1])
-                trans    = str(consultaCompra[2])
-                litros   =     consultaCompra[3]
-                data     = str(consultaCompra[5])
-                hrs      = str(consultaCompra[6])
+                try:
 
-                consultaTransportadoraCompra = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod +" and id_transportadora = " + trans
-                cur.execute(consultaTransportadoraCompra)
-                resultTransportadoraCompra = cur.fetchone()
-
-            #se a consulta para ver se ja esta no transportadoras_saldo for nulo ele ira cadastrar
-                if(resultTransportadoraCompra == None):
-
-                    consProd = "SELECT codigo FROM produtos where codigo =" + prod
-                    cur.execute(consProd)
-                    consultaProd = cur.fetchone()
-
-                    consTrans = "SELECT cod_pes FROM transportadoras where cod_pes =" + trans
-                    cur.execute(consTrans)
-                    consultaTrans = cur.fetchone()
-
-
-
-                    a = "INSERT INTO transportadoras_saldo (id_produto, id_transportadora, saldo, data, hora) values " + "("
-                    b =  str(consultaProd).strip('(,)') +",'"
-                    c = str(consultaTrans).strip('(,)')+"','"
-                    d = str(litros) +"','"
-                    e = str(data) +"','"
-                    f = str(hrs)+ "')"
-                    buildSql = a+b+c+d+e+f
-                    cur.execute(buildSql)
-
-                    # fazer o update
-
-                    upSincCompra = 'update compras set sinc = 1 where id_compras = ' + str(idCompra)
-                    cur.execute(upSincCompra)
 
                     cur.execute("SELECT * FROM compras WHERE sinc = 0")
-                    lacoConsultaCompra = cur.fetchone()
+                    consultaCompra = cur.fetchone()
+                    idCompra = str(consultaCompra[0])
+                    prod     = str(consultaCompra[1])
+                    trans    = str(consultaCompra[2])
+                    litros   =     consultaCompra[3]
+                    data     = str(consultaCompra[5])
+                    hrs      = str(consultaCompra[6])
 
-                    if(lacoConsultaCompra == None):
-                        compCond = False
-
-                else:
-                    consultaTransportadoraCompra = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod + " and id_transportadora = " + trans
+                    consultaTransportadoraCompra = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod +" and id_transportadora = " + trans
                     cur.execute(consultaTransportadoraCompra)
                     resultTransportadoraCompra = cur.fetchone()
-                    idTranspSaldo = resultTransportadoraCompra[0]
-                    litrosTranspSaldo = resultTransportadoraCompra[3]
 
-                    somaLitros = litros + litrosTranspSaldo
+                #se a consulta para ver se ja esta no transportadoras_saldo for nulo ele ira cadastrar
+                    if(resultTransportadoraCompra == None):
 
-                    upSaldoCompra = "update transportadoras_saldo set saldo = " + str(somaLitros) + ", data ='" + str(data) + "', hora ='" + str(hrs) + "' where id_transportadora_saldo = "+ str(idTranspSaldo)
-                    cur.execute(upSaldoCompra)
+                        consProd = "SELECT codigo FROM produtos where codigo =" + prod
+                        cur.execute(consProd)
+                        consultaProd = cur.fetchone()
 
-                    upSincCompra = 'update compras set sinc = 1 where id_compras = ' + str(idCompra)
-                    cur.execute(upSincCompra)
+                        consTrans = "SELECT cod_pes FROM transportadoras where cod_pes =" + trans
+                        cur.execute(consTrans)
+                        consultaTrans = cur.fetchone()
 
-                    cur.execute("SELECT * FROM compras WHERE sinc = 0")
-                    lacoConsultaCompra = cur.fetchone()
 
-                    if(lacoConsultaCompra == None):
-                        compCond = False
 
+                        a = "INSERT INTO transportadoras_saldo (id_produto, id_transportadora, saldo, data, hora) values " + "("
+                        b =  str(consultaProd).strip('(,)') +",'"
+                        c = str(consultaTrans).strip('(,)')+"','"
+                        d = str(litros) +"','"
+                        e = str(data) +"','"
+                        f = str(hrs)+ "')"
+                        buildSql = a+b+c+d+e+f
+                        cur.execute(buildSql)
+
+                        # fazer o update
+
+                        upSincCompra = 'update compras set sinc = 1 where id_compras = ' + str(idCompra)
+                        cur.execute(upSincCompra)
+
+                        cur.execute("SELECT * FROM compras WHERE sinc = 0")
+                        lacoConsultaCompra = cur.fetchone()
+
+                        if(lacoConsultaCompra == None):
+                            compCond = False
+
+                    else:
+                        consultaTransportadoraCompra = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod + " and id_transportadora = " + trans
+                        cur.execute(consultaTransportadoraCompra)
+                        resultTransportadoraCompra = cur.fetchone()
+                        idTranspSaldo = resultTransportadoraCompra[0]
+                        litrosTranspSaldo = resultTransportadoraCompra[3]
+
+                        somaLitros = litros + litrosTranspSaldo
+
+                        upSaldoCompra = "update transportadoras_saldo set saldo = " + str(somaLitros) + ", data ='" + str(data) + "', hora ='" + str(hrs) + "' where id_transportadora_saldo = "+ str(idTranspSaldo)
+                        cur.execute(upSaldoCompra)
+
+                        upSincCompra = 'update compras set sinc = 1 where id_compras = ' + str(idCompra)
+                        cur.execute(upSincCompra)
+
+                        cur.execute("SELECT * FROM compras WHERE sinc = 0")
+                        lacoConsultaCompra = cur.fetchone()
+
+                        if(lacoConsultaCompra == None):
+                            compCond = False
+                except:
+                    con.rollback()
 
         cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
         resultAbastcimento = cur.fetchone()
@@ -323,72 +347,75 @@ while(True):
 
             abastecCond = True
             while(abastecCond):
-                cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
-                consultaAbastec = cur.fetchone()
-                idAbastecimento = str(consultaAbastec[0])
-                prod            = str(consultaAbastec[1])
-                trans           = str(consultaAbastec[2])
-                data            = str(consultaAbastec[3])
-                hrs             = str(consultaAbastec[4])
-                litros          = consultaAbastec[9]
-
-
-                consultaTransportadoraAbastec = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod +" and id_transportadora = " + trans
-                cur.execute(consultaTransportadoraAbastec)
-                resultTransportadoraAbastec = cur.fetchone()
-
-
-            #se a consulta para ver se ja esta no transportadoras_saldo for nulo ele ira cadastrar
-                if(resultTransportadoraAbastec == None):
-
-                    consProd = "SELECT codigo FROM produtos where codigo =" + prod
-                    cur.execute(consProd)
-                    consultaProd = cur.fetchone()
-
-                    consTrans = "SELECT cod_pes FROM transportadoras where cod_pes =" + trans
-                    cur.execute(consTrans)
-                    consultaTrans = cur.fetchone()
-
-
-
-                    a = "INSERT INTO transportadoras_saldo (id_produto, id_transportadora, saldo, data, hora) values " + "("
-                    b =  str(consultaProd).strip('(,)') +",'"
-                    c = str(consultaTrans).strip('(,)')+"','"
-                    d = str(litros) +"','"
-                    e = str(data) +"','"
-                    f = str(hrs)+ "')"
-                    buildSql = a+b+c+d+e+f
-                    cur.execute(buildSql)
-
-                    # fazer o update
-
-                    upSincAbastec = 'update abastecimentos set sinc = 1 where id_abastecimento = ' + str(idAbastecimento)
-                    cur.execute(upSincAbastec)
-
+                try:    
                     cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
-                    lacoConsultaAbastec = cur.fetchone()
+                    consultaAbastec = cur.fetchone()
+                    idAbastecimento = str(consultaAbastec[0])
+                    prod            = str(consultaAbastec[1])
+                    trans           = str(consultaAbastec[2])
+                    data            = str(consultaAbastec[3])
+                    hrs             = str(consultaAbastec[4])
+                    litros          = consultaAbastec[9]
 
-                    if(lacoConsultaAbastec == None):
-                        abastecCond = False
 
-                else:
-
-                    consultaTransportadoraAbastec = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod + " and id_transportadora = " + trans
+                    consultaTransportadoraAbastec = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod +" and id_transportadora = " + trans
                     cur.execute(consultaTransportadoraAbastec)
                     resultTransportadoraAbastec = cur.fetchone()
-                    idTranspSaldo = resultTransportadoraAbastec[0]
-                    litrosTranspSaldo = resultTransportadoraAbastec[3]
 
-                    somaLitros =  litrosTranspSaldo - litros
 
-                    upSaldoAbastec = "update transportadoras_saldo set saldo = " + str(somaLitros) + ", data ='" + str(data) + "', hora ='" + str(hrs) + "' where id_transportadora_saldo = "+ str(idTranspSaldo)
-                    cur.execute(upSaldoAbastec)
+                #se a consulta para ver se ja esta no transportadoras_saldo for nulo ele ira cadastrar
+                    if(resultTransportadoraAbastec == None):
 
-                    upSincAbastec = 'update abastecimentos set sinc = 1 where id_abastecimento = ' + str(idAbastecimento)
-                    cur.execute(upSincAbastec)
+                        consProd = "SELECT codigo FROM produtos where codigo =" + prod
+                        cur.execute(consProd)
+                        consultaProd = cur.fetchone()
 
-                    cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
-                    lacoConsultaAbastec = cur.fetchone()
+                        consTrans = "SELECT cod_pes FROM transportadoras where cod_pes =" + trans
+                        cur.execute(consTrans)
+                        consultaTrans = cur.fetchone()
 
-                    if(lacoConsultaAbastec == None):
-                        abastecCond = False
+
+
+                        a = "INSERT INTO transportadoras_saldo (id_produto, id_transportadora, saldo, data, hora) values " + "("
+                        b =  str(consultaProd).strip('(,)') +",'"
+                        c = str(consultaTrans).strip('(,)')+"','"
+                        d = str(litros) +"','"
+                        e = str(data) +"','"
+                        f = str(hrs)+ "')"
+                        buildSql = a+b+c+d+e+f
+                        cur.execute(buildSql)
+
+                        # fazer o update
+
+                        upSincAbastec = 'update abastecimentos set sinc = 1 where id_abastecimento = ' + str(idAbastecimento)
+                        cur.execute(upSincAbastec)
+
+                        cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
+                        lacoConsultaAbastec = cur.fetchone()
+
+                        if(lacoConsultaAbastec == None):
+                            abastecCond = False
+
+                    else:
+
+                        consultaTransportadoraAbastec = "SELECT * FROM transportadoras_saldo WHERE id_produto = " + prod + " and id_transportadora = " + trans
+                        cur.execute(consultaTransportadoraAbastec)
+                        resultTransportadoraAbastec = cur.fetchone()
+                        idTranspSaldo = resultTransportadoraAbastec[0]
+                        litrosTranspSaldo = resultTransportadoraAbastec[3]
+
+                        somaLitros =  litrosTranspSaldo - litros
+
+                        upSaldoAbastec = "update transportadoras_saldo set saldo = " + str(somaLitros) + ", data ='" + str(data) + "', hora ='" + str(hrs) + "' where id_transportadora_saldo = "+ str(idTranspSaldo)
+                        cur.execute(upSaldoAbastec)
+
+                        upSincAbastec = 'update abastecimentos set sinc = 1 where id_abastecimento = ' + str(idAbastecimento)
+                        cur.execute(upSincAbastec)
+
+                        cur.execute("SELECT * FROM abastecimentos WHERE sinc = 0")
+                        lacoConsultaAbastec = cur.fetchone()
+
+                        if(lacoConsultaAbastec == None):
+                            abastecCond = False
+                except:
+                    con.rollback()
